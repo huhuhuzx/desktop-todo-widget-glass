@@ -1,0 +1,25 @@
+# Personal data and per-device preferences
+tasks.json
+widget-settings.json
+*.log
+桌面日程-错误日志.txt
+logs/
+
+# Built application and temporary build products
+*.exe
+*.pdb
+*.dll
+bin/
+obj/
+build/
+dist/
+*.tmp
+*.bak
+
+# Local editor and system files
+.vs/
+.idea/
+*.user
+*.suo
+Thumbs.db
+desktop.ini
