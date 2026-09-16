@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -102,10 +102,10 @@ internal static class TaskStorage
 internal sealed class DesktopTodoApp
 {
  readonly string folder,taskPath,settingsPath,logPath;readonly JavaScriptSerializer json=new JavaScriptSerializer();readonly bool selfTest,hoverTest,uiTest,previewTest;
- Grid tabRailInner;Border activeTabPill,overlayScrim;Thumb opacityThumb;int lastOpacityReadout=-1,accentPickerVersion,scrimVersion;bool accentPickerOpen;DateTime lastOpacityMotion=DateTime.MinValue;string pillMode="";
+ Grid tabRailInner;Border activeTabPill,overlayScrim;Thumb opacityThumb;int lastOpacityReadout=-1,accentPickerVersion,scrimVersion;bool accentPickerOpen,opacityDragging,svDragging,hueSyncing;DateTime lastOpacityMotion=DateTime.MinValue;string pillMode="";double pickerHue,pickerSat,pickerVal;
  Window window;ObservableCollection<TaskItem> tasks;ICollectionView view;string mode="Agenda";bool loading,editing,suppressCalendarMouseUp;TaskItem editingTask;
  Forms.NotifyIcon notifyIcon;DispatcherTimer reminderTimer,settingsTimer;
- Grid agendaPanel,calendarPanel;Border editorPanel,detailsPanel,settingsPanel,todayBadge,titleInputBorder,successToast,accentPickerPanel;ListBox taskList,dayList;TextBlock searchHint,headerTitle,emptyTitle,todayBadgeText,editorError,opacityValue,detailTitle,detailStatus,detailDateTime,detailCategoryRepeat,detailReminder,detailLocation,detailNotes,selectedDayHeading,calendarNavHint,accentColorLabel,accentInputHint;TextBox searchBox,editTitle,editLocation,editNotes,accentHexInput;StackPanel emptyState,pendingDigits,totalDigits,tabStrip,accentPalette;Slider opacitySlider;TaskItem detailsTask;System.Windows.Shapes.Path successPath;DispatcherTimer errorTimer,successTimer;int pageVersion,successVersion,errorVersion,lastPending=-1,lastTotal=-1,lastToday=-1,hourIndex,minuteIndex;string lastRevealedDay="";Color accentColor=Color.FromRgb(40,108,145);readonly Dictionary<UIElement,int> overlayVersions=new Dictionary<UIElement,int>();readonly Dictionary<TextBlock,int> textVersions=new Dictionary<TextBlock,int>();readonly HashSet<Border> dropdownHooks=new HashSet<Border>();Button dateTodayButton;
+ Grid agendaPanel,calendarPanel;Border editorPanel,detailsPanel,settingsPanel,todayBadge,titleInputBorder,successToast,accentPickerPanel,accentLivePreview,svArea,svHueLayer;ListBox taskList,dayList;TextBlock searchHint,headerTitle,emptyTitle,todayBadgeText,editorError,detailTitle,detailStatus,detailDateTime,detailCategoryRepeat,detailReminder,detailLocation,detailNotes,selectedDayHeading,calendarNavHint,accentColorLabel,accentInputHint,accentLiveHex;TextBox searchBox,editTitle,editLocation,editNotes,accentHexInput;StackPanel emptyState,pendingDigits,totalDigits,tabStrip;WrapPanel accentPalette;Slider opacitySlider,hueSlider;StackPanel opacityDigits;Ellipse svThumb;TaskItem detailsTask;System.Windows.Shapes.Path successPath;DispatcherTimer errorTimer,successTimer;int pageVersion,successVersion,errorVersion,lastPending=-1,lastTotal=-1,lastToday=-1,hourIndex,minuteIndex;string lastRevealedDay="";Color accentColor=Color.FromRgb(40,108,145);readonly Dictionary<UIElement,int> overlayVersions=new Dictionary<UIElement,int>();readonly Dictionary<TextBlock,int> textVersions=new Dictionary<TextBlock,int>();readonly HashSet<Border> dropdownHooks=new HashSet<Border>();Button dateTodayButton;
  System.Windows.Controls.Calendar monthCalendar;DatePicker editDate;Button editHour,editMinute,accentColorButton;ComboBox editCategory,editRepeat,editReminder,themeSelect;Button agendaTab,todayTab,calendarTab,completedTab,pinButton;
  public DesktopTodoApp(bool test,bool hover=false,bool ui=false,bool preview=false){selfTest=test;hoverTest=hover;uiTest=ui;previewTest=preview;folder=AppDomain.CurrentDomain.BaseDirectory;taskPath=Path.Combine(folder,"tasks.json");settingsPath=Path.Combine(folder,"widget-settings.json");logPath=Path.Combine(folder,"流光日程-错误日志.txt");}
  T Find<T>(string n)where T:class{T v=window.FindName(n)as T;if(v==null)throw new InvalidOperationException("找不到控件："+n);return v;}
@@ -141,13 +141,13 @@ internal sealed class DesktopTodoApp
    accentColor=Color.FromRgb(255,220,80);themeSelect.SelectedIndex=1;ApplyAppearance();bool contrast=TextContrastValid();
    themeSelect.SelectedIndex=0;ApplyAppearance();contrast=contrast&&TextContrastValid();
    accentColorButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));accentHexInput.Text="#20C0A0";Find<Button>("ApplyAccentButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-   bool picker=accentPickerPanel.Visibility==Visibility.Visible&&accentColor==Color.FromRgb(32,192,160)&&accentColorLabel.Text.Contains("#20C0A0")&&accentPalette.Children.Count==6&&((SolidColorBrush)window.Resources["AccentBadgeBrush"]).Color==accentColor&&window.Resources["SurfaceBrush"] is LinearGradientBrush;
+   bool picker=accentPickerPanel.Visibility==Visibility.Visible&&accentColor==Color.FromRgb(32,192,160)&&accentColorLabel.Text.Contains("#20C0A0")&&accentPalette.Children.Count==8&&accentLiveHex.Text.Contains("#20C0A0")&&window.FindName("OpenSystemPalette")!=null&&((SolidColorBrush)window.Resources["AccentBadgeBrush"]).Color==accentColor&&window.Resources["SurfaceBrush"] is LinearGradientBrush;
    opacitySlider.Value=75;AttachOpacityThumb();MoveTabPill(false);double pillX=todayTab.TransformToAncestor(tabRailInner).Transform(new Point(0,0)).X;
-   bool readout=opacityValue.Text=="75%"&&opacityThumb!=null,ambient=window.Resources["GlassAmbientBrush"] is RadialGradientBrush&&window.Resources["ContentWellBrush"] is SolidColorBrush,pill=Math.Abs(Motion.Translate(activeTabPill).X-pillX)<.5&&activeTabPill.Width>0;
+   bool readout=String.Join("",opacityDigits.Children.OfType<TextBlock>().Select(x=>x.Text))=="75"&&opacityThumb!=null,ambient=window.Resources["GlassAmbientBrush"] is RadialGradientBrush&&window.Resources["ContentWellBrush"] is SolidColorBrush,pill=Math.Abs(Motion.Translate(activeTabPill).X-pillX)<.5&&activeTabPill.Width>0;
    Environment.ExitCode=blurred?41:tall?42:!corners?43:!styled?44:!headerWorks?50:!selected?49:today==null?46:editDate.SelectedDate!=DateTime.Today?47:editDate.IsDropDownOpen?48:!contrast?45:!picker?51:!readout?52:!ambient?53:!pill?54:0;window.Close();
   });
  }
- void Resolve(){agendaPanel=Find<Grid>("AgendaPanel");calendarPanel=Find<Grid>("CalendarPanel");editorPanel=Find<Border>("EditorPanel");detailsPanel=Find<Border>("DetailsPanel");settingsPanel=Find<Border>("SettingsPanel");todayBadge=Find<Border>("TodayBadge");todayBadgeText=Find<TextBlock>("TodayBadgeText");titleInputBorder=Find<Border>("TitleInputBorder");editorError=Find<TextBlock>("EditorError");successToast=Find<Border>("SuccessToast");successPath=Find<System.Windows.Shapes.Path>("SuccessPath");taskList=Find<ListBox>("TaskList");dayList=Find<ListBox>("DayList");selectedDayHeading=Find<TextBlock>("SelectedDayHeading");calendarNavHint=Find<TextBlock>("CalendarNavHint");searchBox=Find<TextBox>("SearchBox");searchHint=Find<TextBlock>("SearchHint");headerTitle=Find<TextBlock>("HeaderTitle");emptyTitle=Find<TextBlock>("EmptyTitle");pendingDigits=Find<StackPanel>("PendingDigits");totalDigits=Find<StackPanel>("TotalDigits");tabStrip=Find<StackPanel>("TabStrip");emptyState=Find<StackPanel>("EmptyState");monthCalendar=Find<System.Windows.Controls.Calendar>("MonthCalendar");editDate=Find<DatePicker>("EditDate");editTitle=Find<TextBox>("EditTitle");editHour=Find<Button>("EditHour");editMinute=Find<Button>("EditMinute");accentColorButton=Find<Button>("AccentColorButton");accentColorLabel=Find<TextBlock>("AccentColorLabel");accentPickerPanel=Find<Border>("AccentPickerPanel");accentPalette=Find<StackPanel>("AccentPalette");accentHexInput=Find<TextBox>("AccentHexInput");accentInputHint=Find<TextBlock>("AccentInputHint");editLocation=Find<TextBox>("EditLocation");editNotes=Find<TextBox>("EditNotes");editCategory=Find<ComboBox>("EditCategory");editRepeat=Find<ComboBox>("EditRepeat");editReminder=Find<ComboBox>("EditReminder");themeSelect=Find<ComboBox>("ThemeSelect");opacitySlider=Find<Slider>("OpacitySlider");opacityValue=Find<TextBlock>("OpacityValue");detailTitle=Find<TextBlock>("DetailTitle");detailStatus=Find<TextBlock>("DetailStatus");detailDateTime=Find<TextBlock>("DetailDateTime");detailCategoryRepeat=Find<TextBlock>("DetailCategoryRepeat");detailReminder=Find<TextBlock>("DetailReminder");detailLocation=Find<TextBlock>("DetailLocation");detailNotes=Find<TextBlock>("DetailNotes");agendaTab=Find<Button>("AgendaTab");todayTab=Find<Button>("TodayTab");calendarTab=Find<Button>("CalendarTab");completedTab=Find<Button>("CompletedTab");pinButton=Find<Button>("PinButton");Find<TextBlock>("DateText").Text=DateTime.Now.ToString("M月d日 dddd",CultureInfo.GetCultureInfo("zh-CN"));monthCalendar.SelectedDate=DateTime.Today;BuildTimes();BuildAccentPalette();window.Resources["GlassNoiseBrush"]=CreateGlassNoiseBrush();}
+ void Resolve(){agendaPanel=Find<Grid>("AgendaPanel");calendarPanel=Find<Grid>("CalendarPanel");editorPanel=Find<Border>("EditorPanel");detailsPanel=Find<Border>("DetailsPanel");settingsPanel=Find<Border>("SettingsPanel");todayBadge=Find<Border>("TodayBadge");todayBadgeText=Find<TextBlock>("TodayBadgeText");titleInputBorder=Find<Border>("TitleInputBorder");editorError=Find<TextBlock>("EditorError");successToast=Find<Border>("SuccessToast");successPath=Find<System.Windows.Shapes.Path>("SuccessPath");taskList=Find<ListBox>("TaskList");dayList=Find<ListBox>("DayList");selectedDayHeading=Find<TextBlock>("SelectedDayHeading");calendarNavHint=Find<TextBlock>("CalendarNavHint");searchBox=Find<TextBox>("SearchBox");searchHint=Find<TextBlock>("SearchHint");headerTitle=Find<TextBlock>("HeaderTitle");emptyTitle=Find<TextBlock>("EmptyTitle");pendingDigits=Find<StackPanel>("PendingDigits");totalDigits=Find<StackPanel>("TotalDigits");tabStrip=Find<StackPanel>("TabStrip");emptyState=Find<StackPanel>("EmptyState");monthCalendar=Find<System.Windows.Controls.Calendar>("MonthCalendar");editDate=Find<DatePicker>("EditDate");editTitle=Find<TextBox>("EditTitle");editHour=Find<Button>("EditHour");editMinute=Find<Button>("EditMinute");accentColorButton=Find<Button>("AccentColorButton");accentColorLabel=Find<TextBlock>("AccentColorLabel");accentPickerPanel=Find<Border>("AccentPickerPanel");accentPalette=Find<WrapPanel>("AccentPalette");accentHexInput=Find<TextBox>("AccentHexInput");accentInputHint=Find<TextBlock>("AccentInputHint");accentLivePreview=Find<Border>("AccentLivePreview");accentLiveHex=Find<TextBlock>("AccentLiveHex");hueSlider=Find<Slider>("HueSlider");svArea=Find<Border>("SvArea");svHueLayer=Find<Border>("SvHueLayer");svThumb=Find<Ellipse>("SvThumb");editLocation=Find<TextBox>("EditLocation");editNotes=Find<TextBox>("EditNotes");editCategory=Find<ComboBox>("EditCategory");editRepeat=Find<ComboBox>("EditRepeat");editReminder=Find<ComboBox>("EditReminder");themeSelect=Find<ComboBox>("ThemeSelect");opacitySlider=Find<Slider>("OpacitySlider");opacityDigits=Find<StackPanel>("OpacityDigits");detailTitle=Find<TextBlock>("DetailTitle");detailStatus=Find<TextBlock>("DetailStatus");detailDateTime=Find<TextBlock>("DetailDateTime");detailCategoryRepeat=Find<TextBlock>("DetailCategoryRepeat");detailReminder=Find<TextBlock>("DetailReminder");detailLocation=Find<TextBlock>("DetailLocation");detailNotes=Find<TextBlock>("DetailNotes");agendaTab=Find<Button>("AgendaTab");todayTab=Find<Button>("TodayTab");calendarTab=Find<Button>("CalendarTab");completedTab=Find<Button>("CompletedTab");pinButton=Find<Button>("PinButton");Find<TextBlock>("DateText").Text=DateTime.Now.ToString("M月d日 dddd",CultureInfo.GetCultureInfo("zh-CN"));monthCalendar.SelectedDate=DateTime.Today;BuildTimes();BuildAccentPalette();window.Resources["GlassNoiseBrush"]=CreateGlassNoiseBrush();}
  void ResolveGlass(){tabRailInner=Find<Grid>("TabRailInner");activeTabPill=Find<Border>("ActiveTabPill");overlayScrim=Find<Border>("OverlayScrim");}
  void MoveTabPill(bool animate){
   if(tabRailInner==null||!tabRailInner.IsLoaded)return;
@@ -160,14 +160,30 @@ internal sealed class DesktopTodoApp
   pillMode=mode;
  }
  void UpdateOpacityReadout(){
-  int value=(int)Math.Round(opacitySlider.Value);if(value==lastOpacityReadout)return;
-  bool animate=lastOpacityReadout>=0&&opacityValue.IsLoaded&&Motion.Enabled&&(DateTime.UtcNow-lastOpacityMotion).TotalMilliseconds>=130;
-  lastOpacityReadout=value;opacityValue.Text=value.ToString(CultureInfo.InvariantCulture)+"%";
-  TranslateTransform shift=Motion.Translate(opacityValue);
-  if(animate){lastOpacityMotion=DateTime.UtcNow;Motion.Tween(shift,TranslateTransform.YProperty,4,0,Motion.Quick);Motion.Tween(opacityValue,UIElement.OpacityProperty,.7,1,Motion.Quick);}
-  else{shift.BeginAnimation(TranslateTransform.YProperty,null);shift.Y=0;opacityValue.BeginAnimation(UIElement.OpacityProperty,null);opacityValue.Opacity=1;}
- }
- void AttachOpacityThumb(){if(opacityThumb!=null)return;opacitySlider.ApplyTemplate();opacityThumb=VisualChild<Thumb>(opacitySlider);if(opacityThumb==null)return;opacityThumb.DragStarted+=delegate{ScaleOpacityThumb(1.13);};opacityThumb.DragCompleted+=delegate{ScaleOpacityThumb(1);};}
+  int value=(int)Math.Round(opacitySlider.Value);if(value==lastOpacityReadout||opacityDigits==null)return;
+  bool animate=lastOpacityReadout>=0&&opacityDigits.IsLoaded&&Motion.Enabled&&(DateTime.UtcNow-lastOpacityMotion).TotalMilliseconds>=40;
+  lastOpacityReadout=value;
+  string text=value.ToString(CultureInfo.InvariantCulture);
+  opacityDigits.Children.Clear();
+  int index=0;
+  foreach(char ch in text){
+   var digit=new TextBlock{Text=ch.ToString(),FontSize=13,FontWeight=FontWeights.SemiBold,FontFamily=new FontFamily("Consolas")};
+   digit.SetResourceReference(TextBlock.ForegroundProperty,"AccentTextBrush");
+   opacityDigits.Children.Add(digit);
+   if(animate){
+    int delay=index*Motion.Stagger;
+    var host=digit;
+    RunLater(delay,delegate{
+     if(host.Parent!=opacityDigits)return;
+     var shift=Motion.Translate(host);
+     Motion.Tween(host,UIElement.OpacityProperty,0,1,Motion.Quick);
+     Motion.Tween(shift,TranslateTransform.YProperty,8,0,Motion.Quick);
+    });
+   }
+   index++;
+  }
+  if(animate)lastOpacityMotion=DateTime.UtcNow;
+ }void AttachOpacityThumb(){if(opacityThumb!=null)return;opacitySlider.ApplyTemplate();opacityThumb=VisualChild<Thumb>(opacitySlider);if(opacityThumb==null)return;opacityThumb.DragStarted+=delegate{ScaleOpacityThumb(1.13);};opacityThumb.DragCompleted+=delegate{ScaleOpacityThumb(1);};}
  void ScaleOpacityThumb(double target){if(opacityThumb==null)return;ScaleTransform scale=Motion.Scale(opacityThumb);Motion.Tween(scale,ScaleTransform.ScaleXProperty,scale.ScaleX,target,Motion.Quick);Motion.Tween(scale,ScaleTransform.ScaleYProperty,scale.ScaleY,target,Motion.Quick);}
  static Brush CreateGlassNoiseBrush(){var random=new Random(20260916);byte[] pixels=new byte[64*64*4];for(int i=0;i<pixels.Length;i+=4){byte tone=(byte)(random.Next(2)==0?0:255);pixels[i]=pixels[i+1]=pixels[i+2]=tone;pixels[i+3]=8;}var bitmap=BitmapSource.Create(64,64,96,96,PixelFormats.Bgra32,null,pixels,64*4);bitmap.Freeze();var brush=new ImageBrush(bitmap){TileMode=TileMode.Tile,ViewportUnits=BrushMappingMode.Absolute,Viewport=new Rect(0,0,64,64),Stretch=Stretch.None};brush.Freeze();return brush;}
  void BuildTimes(){SetTimeValue(false,0,false);SetTimeValue(true,0,false);foreach(Button wheel in new[]{editHour,editMinute}){wheel.PreviewMouseWheel+=ScrollTimeWheel;wheel.Click+=delegate(object sender,RoutedEventArgs e){StepTime((Button)sender,1);};wheel.PreviewMouseRightButtonUp+=delegate(object sender,MouseButtonEventArgs e){StepTime((Button)sender,-1);e.Handled=true;};wheel.PreviewKeyDown+=delegate(object sender,KeyEventArgs e){if(e.Key==Key.Up||e.Key==Key.Down){StepTime((Button)sender,e.Key==Key.Up?1:-1);e.Handled=true;}};}}
@@ -176,15 +192,68 @@ internal sealed class DesktopTodoApp
   var bitmap=new RenderTargetBitmap(width,height,96,96,PixelFormats.Pbgra32);bitmap.Render(root);byte[] pixels=new byte[width*height*4];bitmap.CopyPixels(pixels,width*4,0);
   Func<int,int,byte> alpha=(x,y)=>pixels[(y*width+x)*4+3];return alpha(0,0)<=2&&alpha(width-1,0)<=2&&alpha(0,height-1)<=2&&alpha(width-1,height-1)<=2&&alpha(width/2,height/2)>100;
  }
- void BuildAccentPalette(){
-  foreach(string hex in new[]{"#286C91","#6576C7","#AD6FA0","#BC7858","#438C73","#577AA3"}){
+void BuildAccentPalette(){
+  foreach(string hex in new[]{"#286C91","#6576C7","#AD6FA0","#BC7858","#438C73","#577AA3","#C45C6A","#3F8F5A"}){
    Color swatch=(Color)ColorConverter.ConvertFromString(hex);
-   var button=new Button{Background=new SolidColorBrush(swatch),BorderBrush=(Brush)window.FindResource("BorderBrush"),Style=(Style)window.FindResource("PaletteButton"),Tag=swatch,ToolTip=hex};
-   button.Click+=delegate{accentColor=(Color)button.Tag;accentHexInput.Text=AccentHex();ApplyAppearance();QueueSettings();};accentPalette.Children.Add(button);
+   var button=new Button{Background=new SolidColorBrush(swatch),BorderBrush=(Brush)window.FindResource("BorderBrush"),Style=(Style)window.FindResource("PaletteButton"),Tag=swatch,ToolTip=hex,Margin=new Thickness(0,0,8,8)};
+   button.Click+=delegate{SetAccent((Color)button.Tag,true);};accentPalette.Children.Add(button);
   }
  }
  string AccentHex(){return String.Format("#{0:X2}{1:X2}{2:X2}",accentColor.R,accentColor.G,accentColor.B);}
- void ApplyAccentInput(){Color parsed;if(!TryAccent((accentHexInput.Text??"").Trim(),out parsed)){accentInputHint.Text="请输入 #RRGGBB 格式的颜色";accentInputHint.SetResourceReference(TextBlock.ForegroundProperty,"ErrorBrush");return;}accentColor=parsed;ApplyAppearance();QueueSettings();}
+ void SetAccent(Color color,bool syncPicker){
+  accentColor=color;
+  if(syncPicker){ColorToHsv(color,out pickerHue,out pickerSat,out pickerVal);SyncPickerChrome();}
+  ApplyAppearance();QueueSettings();
+ }
+ void SyncPickerChrome(){
+  if(hueSlider==null)return;
+  hueSyncing=true;
+  if(Math.Abs(hueSlider.Value-pickerHue)>.5)hueSlider.Value=pickerHue;
+  hueSyncing=false;
+  if(svHueLayer!=null)svHueLayer.Background=new SolidColorBrush(HsvToColor(pickerHue,1,1));
+  if(svArea!=null&&svThumb!=null){
+   double sw=svArea.ActualWidth>0?svArea.ActualWidth:220,sh=svArea.ActualHeight>0?svArea.ActualHeight:112;
+   svThumb.Margin=new Thickness(pickerSat*sw-7,(1-pickerVal)*sh-7,0,0);
+  }
+  if(accentLivePreview!=null)accentLivePreview.Background=new SolidColorBrush(accentColor);
+  if(accentLiveHex!=null)accentLiveHex.Text=AccentHex();
+ }
+ static void ColorToHsv(Color color,out double h,out double s,out double v){
+  double r=color.R/255.0,g=color.G/255.0,b=color.B/255.0;
+  double max=Math.Max(r,Math.Max(g,b)),min=Math.Min(r,Math.Min(g,b)),delta=max-min;
+  h=0;if(delta>0){
+   if(max==r)h=60*(((g-b)/delta)%6);
+   else if(max==g)h=60*(((b-r)/delta)+2);
+   else h=60*(((r-g)/delta)+4);
+   if(h<0)h+=360;
+  }
+  s=max<=0?0:delta/max;v=max;
+ }
+ static Color HsvToColor(double h,double s,double v){
+  double c=v*s,x=c*(1-Math.Abs((h/60.0)%2-1)),m=v-c,r=0,g=0,b=0;
+  if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;}
+  return Color.FromRgb((byte)Math.Round((r+m)*255),(byte)Math.Round((g+m)*255),(byte)Math.Round((b+m)*255));
+ }
+ void ApplyAccentFromPicker(){accentColor=HsvToColor(pickerHue,pickerSat,pickerVal);if(accentLivePreview!=null)accentLivePreview.Background=new SolidColorBrush(accentColor);if(accentLiveHex!=null)accentLiveHex.Text=AccentHex();ApplyAppearance();QueueSettings();}
+ void UpdateSvThumb(Point p){
+  double w=svArea.ActualWidth,h=svArea.ActualHeight;if(w<=0||h<=0||svThumb==null)return;
+  pickerSat=Math.Max(0,Math.Min(1,p.X/w));pickerVal=Math.Max(0,Math.Min(1,1-p.Y/h));
+  svThumb.Margin=new Thickness(pickerSat*w-7,(1-pickerVal)*h-7,0,0);
+ }
+ void HookSvPicker(){
+  if(svArea==null)return;
+  svArea.MouseLeftButtonDown+=delegate(object sender,MouseButtonEventArgs e){svDragging=true;svArea.CaptureMouse();UpdateSvThumb(e.GetPosition(svArea));ApplyAccentFromPicker();e.Handled=true;};
+  svArea.MouseMove+=delegate(object sender,MouseEventArgs e){if(!svDragging)return;UpdateSvThumb(e.GetPosition(svArea));ApplyAccentFromPicker();};
+  svArea.MouseLeftButtonUp+=delegate(object sender,MouseButtonEventArgs e){if(!svDragging)return;svDragging=false;svArea.ReleaseMouseCapture();SyncPickerChrome();};
+  if(hueSlider!=null)hueSlider.ValueChanged+=delegate{if(hueSyncing||svHueLayer==null)return;pickerHue=hueSlider.Value;svHueLayer.Background=new SolidColorBrush(HsvToColor(pickerHue,1,1));ApplyAccentFromPicker();};
+  Button openSystem=window.FindName("OpenSystemPalette")as Button;
+  if(openSystem!=null)openSystem.Click+=delegate{
+   using(var dialog=new Forms.ColorDialog{FullOpen=true,Color=System.Drawing.Color.FromArgb(accentColor.R,accentColor.G,accentColor.B)}){
+    if(dialog.ShowDialog()==Forms.DialogResult.OK)SetAccent(Color.FromRgb(dialog.Color.R,dialog.Color.G,dialog.Color.B),true);
+   }
+  };
+ }
+ void ApplyAccentInput(){Color parsed;if(!TryAccent((accentHexInput.Text??"").Trim(),out parsed)){accentInputHint.Text="请输入 #RRGGBB 格式的颜色";accentInputHint.SetResourceReference(TextBlock.ForegroundProperty,"ErrorBrush");return;}SetAccent(parsed,true);}
  void ScrollTimeWheel(object sender,MouseWheelEventArgs e){StepTime((Button)sender,e.Delta>0?-1:1);e.Handled=true;}
  void StepTime(Button wheel,int step){if(wheel==editMinute&&hourIndex==0)return;bool minute=wheel==editMinute;int count=minute?4:25;int index=(minute?minuteIndex:hourIndex)+step;SetTimeValue(minute,(index+count)%count,true);}
  void SetTimeValue(bool minute,int index,bool animate){Button wheel=minute?editMinute:editHour;if(minute)minuteIndex=index;else hourIndex=index;string next=minute?(hourIndex==0?"—":(index*15).ToString("00")):index==0?"全天":(index-1).ToString("00");if(!minute){editMinute.IsEnabled=index>0;editMinute.Content=index>0?(minuteIndex*15).ToString("00"):"—";}if(Convert.ToString(wheel.Content)==next)return;wheel.Content=next;if(animate&&Motion.Enabled){wheel.ApplyTemplate();ContentPresenter content=VisualChild<ContentPresenter>(wheel);if(content!=null)Motion.Enter(content,150,0,4,1,0);}}
@@ -265,12 +334,12 @@ internal sealed class DesktopTodoApp
   Find<Button>("CloseButton").Click+=delegate{window.Close();};Find<Button>("MinButton").Click+=delegate{window.WindowState=WindowState.Minimized;};pinButton.Click+=delegate{window.Topmost=!window.Topmost;SwapIcon(pinButton,window.Topmost?"◆":"◇");SaveSettings();};
   Find<Button>("NewButton").Click+=delegate{HideOverlays();ShowEditor(null);};Find<Button>("CancelEditor").Click+=delegate{CloseOverlay(editorPanel);};Find<Button>("SaveEditor").Click+=delegate{SaveEditor();};
   Find<Button>("SettingsButton").Click+=delegate{HideOverlays();OpenOverlay(settingsPanel,true);};Find<Button>("CloseSettings").Click+=delegate{CloseOverlay(settingsPanel);SaveSettings();};
-  accentColorButton.Click+=delegate{int version=++accentPickerVersion;accentPickerOpen=!accentPickerOpen;if(accentPickerOpen){accentPickerPanel.Visibility=Visibility.Visible;accentPickerPanel.IsHitTestVisible=true;accentHexInput.Text=AccentHex();Motion.Enter(accentPickerPanel,Motion.Fast,0,4,.97,0);}else{accentPickerPanel.IsHitTestVisible=false;Motion.Exit(accentPickerPanel,delegate{if(version==accentPickerVersion){accentPickerPanel.Visibility=Visibility.Collapsed;accentPickerPanel.IsHitTestVisible=true;}},Motion.Quick,0,-4,.99,0);}};
+  accentColorButton.Click+=delegate{int version=++accentPickerVersion;accentPickerOpen=!accentPickerOpen;if(accentPickerOpen){accentPickerPanel.Visibility=Visibility.Visible;accentPickerPanel.IsHitTestVisible=true;accentHexInput.Text=AccentHex();ColorToHsv(accentColor,out pickerHue,out pickerSat,out pickerVal);SyncPickerChrome();Motion.Enter(accentPickerPanel,Motion.Fast,0,4,.97,0);}else{accentPickerPanel.IsHitTestVisible=false;Motion.Exit(accentPickerPanel,delegate{if(version==accentPickerVersion){accentPickerPanel.Visibility=Visibility.Collapsed;accentPickerPanel.IsHitTestVisible=true;}},Motion.Quick,0,-4,.99,0);}};
   Find<Button>("ApplyAccentButton").Click+=delegate{ApplyAccentInput();};
   accentHexInput.KeyDown+=delegate(object sender,KeyEventArgs e){if(e.Key==Key.Enter){ApplyAccentInput();e.Handled=true;}};
   accentHexInput.TextChanged+=delegate{accentInputHint.Text="输入 #RRGGBB，可使用任意主题色";accentInputHint.SetResourceReference(TextBlock.ForegroundProperty,"TextSecondaryBrush");};
   Find<Button>("CloseDetails").Click+=delegate{CloseOverlay(detailsPanel);};Find<Button>("DetailEdit").Click+=delegate{TaskItem t=detailsTask;HideOverlays();if(t!=null)ShowEditor(t);};
-  themeSelect.SelectionChanged+=delegate{ApplyAppearance();QueueSettings();};opacitySlider.ValueChanged+=delegate{ApplyAppearance();QueueSettings();};
+  themeSelect.SelectionChanged+=delegate{ApplyAppearance();QueueSettings();};opacitySlider.PreviewMouseLeftButtonDown+=delegate{opacityDragging=true;};opacitySlider.PreviewMouseLeftButtonUp+=delegate{opacityDragging=false;ApplyAppearance();QueueSettings();};opacitySlider.ValueChanged+=delegate{if(opacityDragging)ApplyGlassOnly();else{ApplyAppearance();QueueSettings();}};HookSvPicker();
   opacitySlider.Loaded+=delegate{AttachOpacityThumb();};window.ContentRendered+=delegate{MoveTabPill(false);};
   searchBox.TextChanged+=delegate{searchHint.Visibility=searchBox.Text.Length==0?Visibility.Visible:Visibility.Collapsed;view.Refresh();UpdateSummary();};agendaTab.Click+=delegate{SetMode("Agenda");};todayTab.Click+=delegate{SetMode("Today");};calendarTab.Click+=delegate{SetMode("Calendar");};completedTab.Click+=delegate{SetMode("Completed");};monthCalendar.SelectedDatesChanged+=delegate{RefreshDay();};
   monthCalendar.PreviewMouseDown+=CalendarHeaderMouseDown;monthCalendar.PreviewMouseUp+=CalendarMouseUp;monthCalendar.PreviewKeyDown+=CalendarHeaderKeyDown;
@@ -278,7 +347,7 @@ internal sealed class DesktopTodoApp
   editDate.CalendarOpened+=delegate{window.Dispatcher.BeginInvoke(new Action(HookDatePickerCalendar),DispatcherPriority.Loaded);};
    taskList.AddHandler(Button.ClickEvent,new RoutedEventHandler(TaskButton));taskList.PreviewMouseLeftButtonUp+=TaskCardClick;dayList.PreviewMouseLeftButtonUp+=DayCardClick;
    editTitle.TextChanged+=delegate{ClearTitleError();};foreach(ComboBox combo in new[]{editCategory,editRepeat,editReminder,themeSelect}){ComboBox local=combo;local.DropDownOpened+=delegate{AnimateDropdown(local);};}
-   window.SourceInitialized+=delegate{HwndSource source=(HwndSource)PresentationSource.FromVisual(window);source.AddHook(WindowProc);ApplyAppearance();};settingsTimer=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(450)};settingsTimer.Tick+=delegate{settingsTimer.Stop();SaveSettings();};window.LocationChanged+=ScheduleSettings;window.SizeChanged+=ScheduleSettings;
+   window.SourceInitialized+=delegate{HwndSource source=(HwndSource)PresentationSource.FromVisual(window);source.AddHook(WindowProc);EnableNativeResize();ApplyAppearance();};settingsTimer=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(450)};settingsTimer.Tick+=delegate{settingsTimer.Stop();SaveSettings();};window.LocationChanged+=ScheduleSettings;window.SizeChanged+=ScheduleSettings;
   window.Closing+=delegate{if(settingsTimer!=null)settingsTimer.Stop();if(reminderTimer!=null)reminderTimer.Stop();if(notifyIcon!=null){notifyIcon.Visible=false;notifyIcon.Dispose();}if(!selfTest){SaveTasks();SaveSettings();}};
  }
  void TaskButton(object sender,RoutedEventArgs e){DependencyObject d=e.OriginalSource as DependencyObject;while(d!=null&&!(d is Button))d=VisualTreeHelper.GetParent(d);Button b=d as Button;TaskItem t=b==null?null:b.Tag as TaskItem;if(t==null)return;if(b.Name=="EditTask")ShowEditor(t);else if(b.Name=="DeleteTask"){t.PropertyChanged-=Changed;tasks.Remove(t);SaveTasks();view.Refresh();RefreshDay();UpdateSummary();}e.Handled=true;}
@@ -341,7 +410,21 @@ internal sealed class DesktopTodoApp
  void ShowDetails(TaskItem t){detailsTask=t;HideOverlays();detailTitle.Text=t.Title;detailStatus.Text=t.IsDone?"✓ 已完成":"○ 待完成";DateTime d;string date=DateTime.TryParseExact(t.DueDate,"yyyy-MM-dd",CultureInfo.InvariantCulture,DateTimeStyles.None,out d)?d.ToString("yyyy年M月d日 dddd",CultureInfo.GetCultureInfo("zh-CN")):t.DueDate;detailDateTime.Text=date+(String.IsNullOrEmpty(t.DueTime)?" · 全天":" · "+t.DueTime);detailCategoryRepeat.Text=t.Category+" · "+t.Repeat;detailReminder.Text=ReminderText(t.Reminder);detailLocation.Text=String.IsNullOrWhiteSpace(t.Location)?"未设置":t.Location;detailNotes.Text=String.IsNullOrWhiteSpace(t.Notes)?"无备注":t.Notes;OpenOverlay(detailsPanel,false);}
  static string ReminderText(int v){return v<0?"不提醒":v==0?"准时提醒":v==10?"提前 10 分钟":v==30?"提前 30 分钟":v==60?"提前 1 小时":v==1440?"提前 1 天":"提前 "+v+" 分钟";}
  void QueueSettings(){if(selfTest||settingsTimer==null)return;settingsTimer.Stop();settingsTimer.Start();}
- void ApplyAppearance(){
+ void ApplyGlassOnly(){
+  if(themeSelect==null||opacitySlider==null||themeSelect.SelectedIndex<0)return;
+  bool dark=themeSelect.SelectedIndex==1;byte glass=(byte)Math.Round(190+(opacitySlider.Value-55)*1.22);
+  UpdateOpacityReadout();
+  window.Background=Brushes.Transparent;
+  Color glassBase=dark?Color.FromRgb(24,35,53):Color.FromRgb(246,250,255);
+  Color upper=Mix(glassBase,accentColor,dark?.13:.07),lower=Mix(glassBase,accentColor,dark?.035:.02);
+  window.Resources["SurfaceBrush"]=new LinearGradientBrush(new GradientStopCollection{
+   new GradientStop(Color.FromArgb(glass,upper.R,upper.G,upper.B),0),
+   new GradientStop(Color.FromArgb((byte)Math.Min(250,glass+3),glassBase.R,glassBase.G,glassBase.B),.54),
+   new GradientStop(Color.FromArgb((byte)Math.Min(252,glass+7),lower.R,lower.G,lower.B),1)
+  },new Point(0,0),new Point(1,1));
+  SetBrush("InputBrush",dark,Color.FromArgb((byte)Math.Min(246,glass+7),43,57,78),Color.FromArgb((byte)Math.Min(246,glass+1),255,255,255));
+  SetBrush("ItemBrush",dark,Color.FromArgb((byte)Math.Min(245,glass+4),38,52,74),Color.FromArgb((byte)Math.Min(240,glass+2),255,255,255));
+ }void ApplyAppearance(){
   if(themeSelect==null||opacitySlider==null||themeSelect.SelectedIndex<0)return;
   bool dark=themeSelect.SelectedIndex==1;byte glass=(byte)Math.Round(190+(opacitySlider.Value-55)*1.22);
   UpdateOpacityReadout();
@@ -387,6 +470,9 @@ internal sealed class DesktopTodoApp
   window.Resources["AccentBadgeBrush"]=new SolidColorBrush(accentColor);
   if(((SolidColorBrush)TaskItem.PersonalCategoryBrush).Color!=accentColor){TaskItem.PersonalCategoryBrush=new SolidColorBrush(accentColor);if(tasks!=null)foreach(TaskItem task in tasks)task.RefreshCategoryBrush();}
   if(accentColorLabel!=null)accentColorLabel.Text=AccentHex()+"  ·  自由选择颜色  ▾";
+  if(accentLivePreview!=null)accentLivePreview.Background=new SolidColorBrush(accentColor);
+  if(accentLiveHex!=null)accentLiveHex.Text=AccentHex();
+  if(svHueLayer!=null&&!svDragging)svHueLayer.Background=new SolidColorBrush(HsvToColor(pickerHue,1,1));
   if(accentPalette!=null)foreach(Button swatch in accentPalette.Children.OfType<Button>()){Color color=(Color)swatch.Tag;swatch.BorderBrush=new SolidColorBrush(color==accentColor?accentColor:(dark?Color.FromRgb(90,102,122):Color.FromRgb(207,215,226)));swatch.BorderThickness=new Thickness(color==accentColor?2.5:1.4);}
   UpdateTabs();
  }
@@ -464,7 +550,27 @@ internal sealed class DesktopTodoApp
  [DllImport("gdi32.dll")]static extern IntPtr CreateRectRgn(int left,int top,int right,int bottom);
  [DllImport("gdi32.dll")]static extern bool DeleteObject(IntPtr handle);
  [DllImport("user32.dll")]static extern int GetWindowRgn(IntPtr hwnd,IntPtr region);
- const int WM_NCHITTEST=0x84,HTLEFT=10,HTRIGHT=11,HTTOP=12,HTTOPLEFT=13,HTTOPRIGHT=14,HTBOTTOM=15,HTBOTTOMLEFT=16,HTBOTTOMRIGHT=17;IntPtr WindowProc(IntPtr h,int msg,IntPtr w,IntPtr l,ref bool handled){if(msg!=WM_NCHITTEST||window.WindowState==WindowState.Maximized)return IntPtr.Zero;long packed=l.ToInt64();int x=(short)(packed&65535),y=(short)((packed>>16)&65535);Point p=window.PointFromScreen(new Point(x,y));double z=8;bool a=p.X<z,b=p.X>window.ActualWidth-z,c=p.Y<z,d=p.Y>window.ActualHeight-z;int hit=a&&c?HTTOPLEFT:b&&c?HTTOPRIGHT:a&&d?HTBOTTOMLEFT:b&&d?HTBOTTOMRIGHT:a?HTLEFT:b?HTRIGHT:c?HTTOP:d?HTBOTTOM:0;if(hit!=0){handled=true;return new IntPtr(hit);}return IntPtr.Zero;}
+ [DllImport("user32.dll")]static extern int GetWindowLong(IntPtr hwnd,int index);
+ [DllImport("user32.dll")]static extern int SetWindowLong(IntPtr hwnd,int index,int newLong);
+ const int GWL_STYLE=-16,WS_THICKFRAME=0x00040000,WS_MINIMIZEBOX=0x00020000;
+ void EnableNativeResize(){
+  var hwnd=new WindowInteropHelper(window).Handle;
+  if(hwnd==IntPtr.Zero)return;
+  int style=GetWindowLong(hwnd,GWL_STYLE);
+  style|=WS_THICKFRAME|WS_MINIMIZEBOX;
+  SetWindowLong(hwnd,GWL_STYLE,style);
+ }
+ const int WM_NCHITTEST=0x84,HTLEFT=10,HTRIGHT=11,HTTOP=12,HTTOPLEFT=13,HTTOPRIGHT=14,HTBOTTOM=15,HTBOTTOMLEFT=16,HTBOTTOMRIGHT=17;
+ IntPtr WindowProc(IntPtr h,int msg,IntPtr w,IntPtr l,ref bool handled){
+  if(msg!=WM_NCHITTEST||window.WindowState==WindowState.Maximized||window.ActualWidth<=0)return IntPtr.Zero;
+  long packed=l.ToInt64();int x=(short)(packed&65535),y=(short)((packed>>16)&65535);
+  Point p;
+  try{p=window.PointFromScreen(new Point(x,y));}catch{return IntPtr.Zero;}
+  double z=12;bool a=p.X<z,b=p.X>window.ActualWidth-z,c=p.Y<z,d=p.Y>window.ActualHeight-z;
+  int hit=a&&c?HTTOPLEFT:b&&c?HTTOPRIGHT:a&&d?HTBOTTOMLEFT:b&&d?HTBOTTOMRIGHT:a?HTLEFT:b?HTRIGHT:c?HTTOP:d?HTBOTTOM:0;
+  if(hit!=0){handled=true;return new IntPtr(hit);}
+  return IntPtr.Zero;
+ }
 }
 internal static class Program
 {
