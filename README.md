@@ -36,14 +36,6 @@ powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1
 
 编译需要系统自带的 .NET Framework WPF 工具链，会生成 `流光日程.exe`。
 
-运行 `流光日程.exe --preview` 可在 `preview` 文件夹重新生成界面预览图。预览使用内存中的演示日程，不读取或改写真实 `tasks.json`。
-
-## 预览
-
-| 浅色首页 | 深色设置 | 紧凑窗口 |
-| --- | --- | --- |
-| ![浅色首页](preview/light-home.png) | ![深色设置](preview/dark-settings.png) | ![紧凑窗口](preview/compact-settings.png) |
-
 ## 设计说明
 
 设计取舍与材质限制见 [DESIGN.md](DESIGN.md)。窗口采用单一 WPF 透明圆角与半透明渐变，不调用 DWM Acrylic，也不实时模糊窗口后方的其他应用。

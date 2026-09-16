@@ -5,6 +5,9 @@ widget-settings.json
 桌面日程-错误日志.txt
 logs/
 
+# Local preview screenshots
+preview/
+
 # Built application and temporary build products
 *.exe
 *.pdb

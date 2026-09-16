@@ -31,7 +31,6 @@
 - Motion.cs：原生 WPF 动效源码
 - UI.xaml：界面和控件样式
 - DESIGN.md：设计规范说明
-- preview/：界面预览图
 - app.manifest：Windows 程序清单
 - 桌面日程.ico：应用图标
 - Build-Exe.ps1：一键重新编译脚本
