@@ -36,7 +36,7 @@ internal static class Motion
  public static ScaleTransform Scale(UIElement element) { return (ScaleTransform)Transforms(element).Children[0]; }
  public static RotateTransform Rotate(UIElement element) { return (RotateTransform)Transforms(element).Children[1]; }
  public static TranslateTransform Translate(UIElement element) { return (TranslateTransform)Transforms(element).Children[2]; }
- public static void Enter(UIElement element, int ms = Fast, double x = 0, double y = 8, double scale = .96)
+ public static void Enter(UIElement element, int ms = Fast, double x = 0, double y = 8, double scale = .96, double blur = 2)
  {
   if (!Enabled) { element.Opacity = 1; Translate(element).X=0; Translate(element).Y=0; Scale(element).ScaleX=1; Scale(element).ScaleY=1; return; }
   var t = Translate(element); var s = Scale(element);
@@ -46,7 +46,7 @@ internal static class Motion
   Tween(s, ScaleTransform.ScaleXProperty, scale, 1, ms);
   Tween(s, ScaleTransform.ScaleYProperty, scale, 1, ms);
  }
- public static void Exit(UIElement element, Action completed, int ms = Quick, double x = 0, double y = -4, double scale = .98)
+ public static void Exit(UIElement element, Action completed, int ms = Quick, double x = 0, double y = -4, double scale = .98, double blur = 2)
  {
   if (!Enabled) { if(completed!=null)completed(); return; }
   Tween(element, UIElement.OpacityProperty, element.Opacity, 0, ms, false, completed);
