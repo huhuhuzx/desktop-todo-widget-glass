@@ -16,8 +16,10 @@ $args=@(
  ('/win32manifest:'+[IO.Path]::Combine($root,'app.manifest')),
  ('/resource:'+([IO.Path]::Combine($root,'UI.xaml'))+',UI.xaml'),
  ('/resource:'+([IO.Path]::Combine($root,'DesktopTodo.cs'))+',DesktopTodo.cs'),
- ('/resource:'+([IO.Path]::Combine($root,'Motion.cs'))+',Motion.cs')
-)+($refs|ForEach-Object{'/reference:'+$_})+@([IO.Path]::Combine($root,'DesktopTodo.cs'),[IO.Path]::Combine($root,'Motion.cs'))
+ ('/resource:'+([IO.Path]::Combine($root,'Motion.cs'))+',Motion.cs'),
+ ('/resource:'+([IO.Path]::Combine($root,'Planning.cs'))+',Planning.cs'),
+ ('/resource:'+([IO.Path]::Combine($root,'Workspace.cs'))+',Workspace.cs')
+)+($refs|ForEach-Object{'/reference:'+$_})+@([IO.Path]::Combine($root,'DesktopTodo.cs'),[IO.Path]::Combine($root,'Motion.cs'),[IO.Path]::Combine($root,'Planning.cs'),[IO.Path]::Combine($root,'Workspace.cs'),[IO.Path]::Combine($root,'PlanningChecks.cs'))
 & $csc $args
 if($LASTEXITCODE-ne0){throw '编译失败'}
 Write-Output '流光日程.exe 编译成功。'

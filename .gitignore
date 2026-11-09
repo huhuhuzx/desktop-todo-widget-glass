@@ -1,8 +1,11 @@
 # Personal data and per-device preferences
 tasks.json
 widget-settings.json
+planner-settings.json
+backups/
 *.log
 桌面日程-错误日志.txt
+*错误日志.txt
 logs/
 
 # Local preview screenshots
